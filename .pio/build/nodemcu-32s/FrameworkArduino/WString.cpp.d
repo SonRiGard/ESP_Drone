@@ -123,7 +123,6 @@
  C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/cores/esp32/HardwareSerial.h \
  C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/cores/esp32/HWCDC.h \
  C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/cores/esp32/Esp.h \
- C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/cores/esp32/Arduino.h \
  C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/spi_flash/include/esp_partition.h \
  C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/spi_flash/include/esp_flash.h \
  C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/hal/include/hal/spi_flash_types.h \
