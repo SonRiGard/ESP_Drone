@@ -124,12 +124,12 @@ void setup() {
     }
     //--------END setup for radio----------------
     //-----setup timer0 to interrupt T=S to receiver request status of drone--------------
-    timer1 = timerBegin(0, 80, true); // timer 0, prescaler 80, count up
+    timer1 = timerBegin(0, 256, true); // timer 0, prescaler 80, count up
     timerAttachInterrupt(timer1, &onTimer1, true);
     timerAlarmWrite(timer1, TIMER1_INTERVAL_US, true);
     timerAlarmEnable(timer1);
     //-----setup timer1 to interrupt T=S for sample time of PID --------------
-    timer2 = timerBegin(1, 80, true); // timer 1, prescaler 80, count up
+    timer2 = timerBegin(1, 256, true); // timer 1, prescaler 80, count up
     timerAttachInterrupt(timer2, &onTimer2, true);
     timerAlarmWrite(timer2, TIMER2_INTERVAL_US, true);
     timerAlarmEnable(timer2);
