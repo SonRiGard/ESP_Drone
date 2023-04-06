@@ -9,6 +9,8 @@
 #include <RF24.h>
 #include <SPI.h>
 #include "PID.h"
+#include "BluetoothSerial.h"
+#include "string.h"
 
 //-------------MPU9250----------------------
 #define pi 3.141592653589793238462
@@ -16,7 +18,7 @@
 #define TIMER1_INTERVAL_US 200000 // 0.2 seconds
 // Timer interrup interval to PID 
 #define TIMER2_INTERVAL_US 500000 // 0.5 seconds
-
+//Configuration Low Pass Filte for mpu6050 in header file mpu9250.h
 //------drone's parameters---
 double L = 0.16;//length from motor center to center of gravity
 double KmT = 0.02;//propeller parameters
@@ -67,7 +69,13 @@ bool radioNumber = 1;  // 0 uses address[0] to transmit, 1 uses address[1] to tr
 bool role = false;  // true = TX role, false = RX role
 float payload[4];
 //------------END init NRF -----------
+//------------Init for blutooth---------
+#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
+#error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
+#endif
 
+BluetoothSerial SerialBT;
+//------------END Init for blutooth---------
 //------------PID Init-------------
 float deltaT_PID = (float)TIMER2_INTERVAL_US/1000000.0;
 PID_t pid_pitch, pid_roll, pid_yaw, pid_altitude;
@@ -90,6 +98,8 @@ void setup() {
 	setK(1,1,1,&pid_yaw);
 	setK(1,1,1,&pid_altitude);
     //END---------PID-------------
+    //start Bluetooth
+     SerialBT.begin("ESP32test"); //Bluetooth device name
     //----pwm setup -------
     setup_pwm();
     //---end pwm init ------
@@ -149,6 +159,10 @@ void loop()
 
   //update angle yall pitch roll
   update_quaternion();
+  //Print yaw pitch roll to pc via bluetooth
+  char str[30]={};
+  sprintf(str, "%.2f,%.2f,%.2f\n",yaw,pitch,roll );
+  SerialBT.write((uint8_t*)str, strlen(str));
 }      
 
 //Interrupt function on timer 0 
@@ -186,10 +200,10 @@ void pwm_caculate (int8_t pitch, int8_t roll,int8_t yaw, int8_t altitude){
 
 void set_pwm_to_motor(void){
     // Set the duty cycle of each PWM signal (0-255) if define 8 bit solution
-  ledcWrite(PWM_CHANNEL_1, pwm1); // 50% duty cycle
-  ledcWrite(PWM_CHANNEL_2, pwm2); // 25% duty cycle
-  ledcWrite(PWM_CHANNEL_3, pwm3); // 75% duty cycle
-  ledcWrite(PWM_CHANNEL_4, pwm4); // 12.5% duty cycle
+  ledcWrite(PWM_CHANNEL_1, pwm1); 
+  ledcWrite(PWM_CHANNEL_2, pwm2); 
+  ledcWrite(PWM_CHANNEL_3, pwm3); 
+  ledcWrite(PWM_CHANNEL_4, pwm4); 
 }
 void setup_pwm(void){
     // Configure the timers for PWM generation

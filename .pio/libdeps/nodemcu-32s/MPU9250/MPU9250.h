@@ -2,12 +2,20 @@
 #ifndef MPU9250_H
 #define MPU9250_H
 
-
 #include "SoftwareSerial.h"
 #include "Madgwick.h"
 #include "MPU9250/MPU9250RegisterMap.h"
 #include "MPU9250/QuaternionFilter.h"
 #include "Wire.h"
+
+// #define DLPF  6  //5Hz for gyro
+#define DLPF  5  //10Hz for gyro
+// #define DLPF  4  //20Hz for gyro
+// #define DLPF  3  //42Hz for gyro  
+// #define DLPF  2  //98Hz for gyro
+// #define DLPF  1  //188Hz for gyro
+// #define DLPF  0  //256Hz for gyro
+
 int16_t Accel_x,Accel_y,Accel_z,Gyro_x,Gyro_y,Gyro_z;
 #define accel_sensitivity 16384.0//8192.0//16384.0      // =  LSB/g
 #define mag_sensitivity    2.56 // Divide raw data by mag_sensitivity to change uT -> mG      raw_Data/(10*4912/32760)
@@ -640,7 +648,7 @@ public:
 
 
         //CONGFIG
-        write_byte(MPU9250_ADDRESS, MPU_CONFIG, 0x09); 
+        write_byte(MPU9250_ADDRESS, MPU_CONFIG, 0x08|DLPF); 
 
         /* Set data sample rate */
         // sample rate = SAMPLE_RATE/(1 + 7) = 1khz
