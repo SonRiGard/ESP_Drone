@@ -11,6 +11,7 @@
 #include "PID.h"
 #include "BluetoothSerial.h"
 #include "string.h"
+
 //----Define devices and function for drone-----
 #define Due_core_MCU
 //#define NRF24 // dung nrf 24 de truyen nhan du lieu rada
@@ -113,17 +114,21 @@ void cali_motor(void);
 //----end define function ------- 
 void setup() {
     Serial.begin(115200);
-    Wire.begin();
-    Serial.print(SCL);
-    //---------PID-------------
-  setK(01,0.21,-0.18,&pid_pitch);
-	setK(0,0,0,&pid_roll);
-	setK(0,0,0,&pid_yaw);
-	setK(0,0,0,&pid_altitude);
-    //END---------PID-------------
     //start Bluetooth
-     SerialBT.begin("ESP32test"); //Bluetooth device name
-     Serial.println("The device started, now you can pair it with bluetooth!");
+    SerialBT.begin("ESP32test"); //Bluetooth device name
+
+    char str[30]={"the device started"};
+    SerialBT.write((uint8_t*)str, strlen(str));
+
+    Wire.begin();
+    //---------PID-------------
+    setK(01,0.21,-0.18,&pid_pitch);
+    setK(0,0,0,&pid_roll);
+    setK(0,0,0,&pid_yaw);
+    setK(0,0,0,&pid_altitude);
+
+    //END---------PID-------------
+
     //---end pwm init ------
     pinMode(2,OUTPUT);
     // --------Set up and calibration MPU6050 and mag GY-271---------
@@ -134,21 +139,16 @@ void setup() {
         }
     }
     
-    //----pwm setup -------
-    ledcSetup(PWM_CHANNEL_1, PWM_FREQUENCY, PWM_RESOLUTION); 
-    ledcAttachPin(PWM_PIN_1, PWM_CHANNEL_1);
-    ledcSetup(PWM_CHANNEL_2, PWM_FREQUENCY, PWM_RESOLUTION); 
-    ledcAttachPin(PWM_PIN_2, PWM_CHANNEL_2);
-    ledcSetup(PWM_CHANNEL_3, PWM_FREQUENCY, PWM_RESOLUTION); 
-    ledcAttachPin(PWM_PIN_3, PWM_CHANNEL_3);
-    ledcSetup(PWM_CHANNEL_4, PWM_FREQUENCY, PWM_RESOLUTION); 
-    ledcAttachPin(PWM_PIN_4, PWM_CHANNEL_4);
+    //----motors setup ----------
+    setup_pwm();
+    cali_motor();
 
-#ifdef AUTO_calib_IMU // need edit again 
-    //cali_motor();
-#endif
-    // setup_pwm();
-//
+    ledcWrite(PWM_CHANNEL_1, 3276);
+    ledcWrite(PWM_CHANNEL_2, 3276);
+    ledcWrite(PWM_CHANNEL_3, 3276);
+    ledcWrite(PWM_CHANNEL_4, 3276);
+    //----END motors setup -------
+
 #ifdef NRF24
     //---------setup for radio operation----------------
     // initialize the transceiver on the SPI bus
@@ -178,11 +178,11 @@ void setup() {
     timerAlarmWrite(timer1, TIMER1_INTERVAL_US, true);
     timerAlarmEnable(timer1);
 #endif
-    //-----setup timer1 to interrupt T=S for sample time of PID --------------
-    timer2 = timerBegin(1, 160, true); // timer 1, prescaler 160, count up
+    //-----setup timer1 to interrupt T=S for sample time of PID--------------
+    timer2 = timerBegin(1, 80, true); // timer 1, prescaler 160, count up
     timerAttachInterrupt(timer2, &onTimer2, true);
     timerAlarmWrite(timer2, TIMER2_INTERVAL_US, true);
-    timerAlarmEnable(timer2); 
+    timerAlarmEnable(timer2);
 #ifdef Due_core_MCU
     //----Config due core
     //create a task that will be executed in the Task1code() function, with priority 1 and executed on core 0
@@ -234,6 +234,7 @@ void Task1code( void * pvParameters ){
 void Task2code( void * pvParameters ){
   for(;;){
     if(Flag_PID_Interrupted == true){
+      Serial.println(millis());
       get_out(&pid_pitch,pid_pitch.set_point,pitch);
       get_out(&pid_roll,pid_roll.set_point,roll);
       pwm_caculate (pid_pitch.u, 0,0,0);//pid_roll.u,pid_yaw.u, pid_altitude.u);
@@ -296,7 +297,7 @@ void IRAM_ATTR onTimer1() {
   pid_yaw.set_point = 0;
   pid_altitude.set_point = 0;
 
-    // This device is a RX node
+  // This device is a RX node
   //Serial.println("interrupted");
 //
 }
@@ -321,18 +322,20 @@ void set_pwm_to_motor(void){
 }
 void setup_pwm(void){
     // Configure the timers for PWM generation
+  // configure LED PWM functionalitites
   ledcSetup(PWM_CHANNEL_1, PWM_FREQUENCY, PWM_RESOLUTION);
-  ledcAttachPin(PWM_PIN_1, PWM_CHANNEL_1);
-  
   ledcSetup(PWM_CHANNEL_2, PWM_FREQUENCY, PWM_RESOLUTION);
-  ledcAttachPin(PWM_PIN_2, PWM_CHANNEL_2);
-  
   ledcSetup(PWM_CHANNEL_3, PWM_FREQUENCY, PWM_RESOLUTION);
-  ledcAttachPin(PWM_PIN_3, PWM_CHANNEL_3);
-  
   ledcSetup(PWM_CHANNEL_4, PWM_FREQUENCY, PWM_RESOLUTION);
+  
+  
+  // attach the channel to the GPIO to be controlled
+  ledcAttachPin(PWM_PIN_1, PWM_CHANNEL_1);
+  ledcAttachPin(PWM_PIN_2, PWM_CHANNEL_2);
+  ledcAttachPin(PWM_PIN_3, PWM_CHANNEL_3);
   ledcAttachPin(PWM_PIN_4, PWM_CHANNEL_4);
 }
+
 void print_roll_pitch_yaw() {
     //Serial.print("Yaw, Pitch, Roll: ");
     Serial.print(yaw);

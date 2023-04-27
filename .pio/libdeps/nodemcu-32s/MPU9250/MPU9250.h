@@ -7,7 +7,9 @@
 #include "MPU9250/MPU9250RegisterMap.h"
 #include "MPU9250/QuaternionFilter.h"
 #include "Wire.h"
-
+#include "BluetoothSerial.h"
+#include "string.h"
+extern BluetoothSerial SerialBT;
 // #define DLPF  6  //5Hz for gyro
 #define DLPF  5  //10Hz for gyro
 // #define DLPF  4  //20Hz for gyro
@@ -15,6 +17,25 @@
 // #define DLPF  2  //98Hz for gyro
 // #define DLPF  1  //188Hz for gyro
 // #define DLPF  0  //256Hz for gyro
+//#define AUTO_CALIB_IMU
+//#define SERIALBT
+//value calib
+/*
+Accel_x_bias : 1156
+Accel_y_bias : -57
+Accel_z_bias : -48
+Gyro_x_bias : -217
+Gyro_y_bias : 548
+Gyro_z_bias : 134
+
+Mag_x_bias:-17.92
+Mag_y_bias:102.40
+Mag_z_bias:-17.92
+Mag_x_scale:1.00
+Mag_y_scale:1.00
+Mag_z_scale:1.00
+*/
+
 
 int16_t Accel_x,Accel_y,Accel_z,Gyro_x,Gyro_y,Gyro_z;
 #define accel_sensitivity 16384.0//8192.0//16384.0      // =  LSB/g
@@ -159,6 +180,7 @@ public:
             Serial.println(" is not valid for MPU. Please check your I2C address.");
             return false;
         }
+
         mpu_i2c_addr = addr;
         setting = mpu_setting;
         wire = &w;
@@ -193,16 +215,35 @@ public:
         mpu_i2c_addr = addr;
         setting = mpu_setting;
         wire = &w;
-        
+
         init_IMU();
         delay(300);
+    #ifdef SERIALBT
+        char str[30];
+        strcpy(str,"IMU configed\n");
+        SerialBT.write((uint8_t*)str, strlen(str));
+    #endif
+
         init_magnetometer();
         delay(300);
+    #ifdef SERIALBT 
+        strcpy(str, "mag configed\n");
+        SerialBT.write((uint8_t*)str, strlen(str));
+    #endif
+#ifdef AUTO_CALIB_IMU
         Calibration_IMU();
         delay(300);
-        //Calib_magnetometer();
-        //delay(300);
-
+    #ifdef SERIALBT
+        strcpy(str,"IMU calib\n");
+        SerialBT.write((uint8_t*)str, strlen(str));
+    #endif
+        Calib_magnetometer();
+        delay(300);
+    #ifdef SERIALBT
+        strcpy(str,"Mag calib\n");
+        SerialBT.write((uint8_t*)str, strlen(str));
+    #endif
+#endif
         return true;
     }
     
@@ -725,14 +766,21 @@ void Calibration_IMU()
 	{
 		Accel_z_bias += (int32_t)accel_sensitivity;
 	}
+#ifdef SERIALBT
+    char str[60]={};
+    sprintf(str, "Ax_bias: %.2f   Ay_bias: %.2f   Az_bias: %.2f\n",Accel_x_bias,Accel_y_bias,Accel_z_bias);
+    SerialBT.write((uint8_t*)str, strlen(str));
 
+    sprintf(str, "Gx_bias: %.2f   Gy_bias: %.2f   Gz_bias: %.2f\n",Gyro_x_bias,Gyro_y_bias,Gyro_z_bias);
+    SerialBT.write((uint8_t*)str, strlen(str));
+#else
     Serial.print("Accel_x_bias : "); Serial.println(Accel_x_bias); 
     Serial.print("Accel_y_bias : "); Serial.println(Accel_y_bias); 
     Serial.print("Accel_z_bias : "); Serial.println(Accel_z_bias); 
     Serial.print("Gyro_x_bias : "); Serial.println(Gyro_x_bias); 
     Serial.print("Gyro_y_bias : "); Serial.println(Gyro_y_bias); 
     Serial.print("Gyro_z_bias : "); Serial.println(Gyro_z_bias); 
-
+#endif
 }
 
 void Calib_magnetometer()
@@ -788,7 +836,15 @@ void Calib_magnetometer()
     Mag_x_bias = (float)bias[0] * mag_sensitivity ;
 	Mag_y_bias = (float)bias[1] * mag_sensitivity ;
 	Mag_z_bias = (float)bias[2] * mag_sensitivity ;
-
+#ifdef SERIALBT
+    char str[60]={};
+    sprintf(str, "Mx_bias: %.2f   My_bias: %.2f   Mz_bias: %.2f\n",Mag_x_bias,Mag_y_bias,Mag_z_bias);
+    SerialBT.write((uint8_t*)str, strlen(str));
+#else
+    Serial.print("Mag_x_bias:");Serial.println(Mag_x_bias);
+    Serial.print("Mag_y_bias:");Serial.println(Mag_y_bias);
+    Serial.print("Mag_z_bias:");Serial.println(Mag_z_bias);
+#endif 
     // Get soft iron correction estimate
     //*** multiplication by mag_bias_factory added in accordance with the following comment
     //*** https://github.com/kriswiner/MPU9250/issues/456#issue-836657973
@@ -802,6 +858,15 @@ void Calib_magnetometer()
     Mag_x_scale = avg_rad / ((float)scale[0]);
     Mag_y_scale = avg_rad / ((float)scale[1]);
     Mag_z_scale = avg_rad / ((float)scale[2]);
+#ifdef SERIALBT
+    strcpy(str, "");
+    sprintf(str, "Mx_scale: %.2f   My_scale: %.2f   Mz_scale: %.2f\n" ,Mag_x_scale,Mag_y_scale,Mag_z_scale);
+    SerialBT.write((uint8_t*)str, strlen(str));
+#else
+    Serial.print("Mag_x_scale:");Serial.println(Mag_x_scale);
+    Serial.print("Mag_y_scale:");Serial.println(Mag_y_scale);
+    Serial.print("Mag_z_scale:");Serial.println(Mag_z_scale);
+#endif
 }
 	
 void Process_IMU()

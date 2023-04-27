@@ -138,13 +138,6 @@
  .pio/libdeps/nodemcu-32s/MPU9250/MPU9250/QuaternionFilter.h \
  C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/libraries/Wire/src/Wire.h \
  C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal.h \
- C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-timer.h \
- C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-gpio.h \
- .pio/libdeps/nodemcu-32s/RF24/RF24.h \
- .pio/libdeps/nodemcu-32s/RF24/RF24_config.h \
- C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/libraries/SPI/src/SPI.h \
- C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-spi.h \
- src/PID.h \
  C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/libraries/BluetoothSerial/src/BluetoothSerial.h \
  C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/bt/host/bluedroid/api/include/api/esp_gap_bt_api.h \
  C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/bt/host/bluedroid/api/include/api/esp_bt_defs.h \
@@ -152,4 +145,11 @@
  C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/libraries/BluetoothSerial/src/BTScan.h \
  C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/cores/esp32/Print.h \
  C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/libraries/BluetoothSerial/src/BTAddress.h \
- C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/libraries/BluetoothSerial/src/BTAdvertisedDevice.h
+ C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/libraries/BluetoothSerial/src/BTAdvertisedDevice.h \
+ C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-timer.h \
+ C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-gpio.h \
+ .pio/libdeps/nodemcu-32s/RF24/RF24.h \
+ .pio/libdeps/nodemcu-32s/RF24/RF24_config.h \
+ C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/libraries/SPI/src/SPI.h \
+ C:/Users/heozu/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-spi.h \
+ src/PID.h
