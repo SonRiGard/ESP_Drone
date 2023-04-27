@@ -31,7 +31,7 @@ extern float deltaT;
 
 float yaw1, yaw2, yaw3;
 int16_t Mag_x_raw, Mag_y_raw, Mag_z_raw;
-float roll,yaw,pitch;
+volatile float roll,yaw,pitch;
 
 enum class ACCEL_FS_SEL {
     A2G,
@@ -200,8 +200,8 @@ public:
         delay(300);
         Calibration_IMU();
         delay(300);
-        Calib_magnetometer();
-        delay(300);
+        //Calib_magnetometer();
+        //delay(300);
 
         return true;
     }
@@ -833,12 +833,6 @@ void Process_IMU()
 
 	// Get data of Magnetometer
 	Get_magnetometer();
-
-	yaw1 = atan2f(Accel_X,Accel_Y) * 57.2957795;
-    yaw2 = yaw2 + Gyro_Z * deltaT* 57.2957795;
-    yaw3 = atan2f(Mag_X,Mag_Y) * 57.2957795;
-
-
     // MadgwickAHRSupdateIMU(Gyro_X,Gyro_Y,Gyro_Z,Accel_X,Accel_Y,Accel_Z);
     MadgwickAHRSupdate(Gyro_X,Gyro_Y,Gyro_Z,Accel_X,Accel_Y,Accel_Z,Mag_X,Mag_Y,-Mag_Z);
     //MadgwickQuaternionUpdate(Accel_X,Accel_Y,Accel_Z, Gyro_X,Gyro_Y,Gyro_Z,Mag_X, Mag_Y,Mag_Z);

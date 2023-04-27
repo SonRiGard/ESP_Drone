@@ -3,10 +3,10 @@
 typedef struct
 {
 	float ampha , betal, gamma, delta;
-	int16_t u , u1;
-	float e , e1, e2;//error
+	volatile int16_t u , u1;
+	volatile float e , e1, e2;//error
 	float KP, KI, KD;
-    float set_point;		
+    volatile float set_point;		
 } PID_t;
 
 void parameter_calculation (PID_t *DataStruct);
