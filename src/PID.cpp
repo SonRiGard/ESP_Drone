@@ -18,6 +18,7 @@ void setK (double KP, double KI, double KD, PID_t *DataStruct){
 	DataStruct->u  = 0; 
 	DataStruct->u1 = 0;
 }
+
 void get_out (PID_t *DataStruct, double set_Angle, double current_Angle){
 	DataStruct->e2 = DataStruct->e1;
 	DataStruct->e1 = DataStruct->e;
