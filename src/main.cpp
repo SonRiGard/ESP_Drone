@@ -25,8 +25,12 @@
 #define TIMER2_INTERVAL_US 10000 // 0.01 seconds
 //Configuration Low Pass Filte for mpu6050 in header file mpu9250.h
 //------drone's parameters---
-double L = 0.16;//length from motor center to center of gravity
-double KmT = 0.02;//propeller parameters
+
+// double L = 0.16;//length from motor center to center of gravity
+// double KmT = 0.02;//propeller parameters
+
+volatile float Myaw, Mpitch, Mroll;
+float Lq=0.18, kM=7.4E-7, kT=3.13E-5;
 //-------------INit use in madgwick ---------
 float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};
 float a12, a22, a31, a32, a33;
@@ -46,7 +50,7 @@ TaskHandle_t Task2;
 hw_timer_t * timer1 = NULL;
 hw_timer_t * timer2 = NULL;
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
-volatile bool Flag_PID_Interrupted = false;
+volatile bool Flag_PID_Interrupted = true;
 volatile bool Flag_NRF_Interrupted = false;
 //struct MPU9250
 MPU9250 mpu;
@@ -67,9 +71,14 @@ MPU9250 mpu;
 #define PWM_CHANNEL_4 3
 #define PWM_PIN_4 26
 
-volatile float pwm1,pwm2,pwm3,pwm4;
-const int pwm_min = 3276;
-const int pwm_max = 6552;
+
+const int THROLLTE0 = 3276;
+const int THROTTLE_MAXIMUM = 6552;
+const int THROTTLE_MINIMUM = 3400;
+
+int PWM1, PWM2, PWM3, PWM4;
+float a=1.255E-6, b=1.639E-4, c=-72.395E-3;
+float TH1=0.0,TH2=0.0,TH3=0.0,TH4=0.0;
 //------------END init PWM-------
 #ifdef NRF24
 //------------INIT nrf24----------
@@ -97,6 +106,9 @@ BluetoothSerial SerialBT;
 //------------PID Init-------------
 float deltaT_PID = (float)TIMER2_INTERVAL_US/1000000.0;
 PID_t pid_pitch, pid_roll, pid_yaw, pid_altitude;
+
+  volatile  uint32_t pretime_PID;
+  volatile  uint32_t endtime_PID;
 //END---------PID-------------/
 //-------define function ------- 
 void print_roll_pitch_yaw();
@@ -104,15 +116,17 @@ void update_quaternion (void);
 void IRAM_ATTR onTimer1();
 void IRAM_ATTR onTimer2();
 void setup_pwm(void);
-void set_pwm_to_motor(void);
-void pwm_caculate (int8_t pitch, int8_t roll,int8_t yaw, int8_t altitude);
 void cali_motor(void);
+void printBT_roll_pitch_yaw();
+volatile int U2PWM(float T);
+float SATURATION(float x, float xmax, float xmin);
 #ifdef Due_core_MCU
   void Task1code( void * pvParameters );
   void Task2code( void * pvParameters );
 #endif
 //----end define function ------- 
 void setup() {
+
     Serial.begin(115200);
     //start Bluetooth
     SerialBT.begin("ESP32test"); //Bluetooth device name
@@ -122,11 +136,15 @@ void setup() {
 
     Wire.begin();
     //---------PID-------------
-    setK(01,0.21,-0.18,&pid_pitch);
-    setK(0,0,0,&pid_roll);
-    setK(0,0,0,&pid_yaw);
-    setK(0,0,0,&pid_altitude);
-
+    delay(2000);
+    setK(100,50,50,&pid_pitch);
+    parameter_calculation(&pid_pitch);
+    // setK(0,0,0,&pid_roll);
+    // parameter_calculation(&pid_roll);
+    // setK(0,0,0,&pid_yaw);
+    // parameter_calculation(&pid_yaw);
+    // setK(0,0,0,&pid_altitude);
+    // parameter_calculation(&pid_altitude);
     //END---------PID-------------
 
     //---end pwm init ------
@@ -141,8 +159,7 @@ void setup() {
     
     //----motors setup ----------
     setup_pwm();
-    cali_motor();
-
+    //cali_motor();
     ledcWrite(PWM_CHANNEL_1, 3276);
     ledcWrite(PWM_CHANNEL_2, 3276);
     ledcWrite(PWM_CHANNEL_3, 3276);
@@ -178,11 +195,13 @@ void setup() {
     timerAlarmWrite(timer1, TIMER1_INTERVAL_US, true);
     timerAlarmEnable(timer1);
 #endif
+/*
     //-----setup timer1 to interrupt T=S for sample time of PID--------------
     timer2 = timerBegin(1, 80, true); // timer 1, prescaler 160, count up
     timerAttachInterrupt(timer2, &onTimer2, true);
     timerAlarmWrite(timer2, TIMER2_INTERVAL_US, true);
     timerAlarmEnable(timer2);
+*/
 #ifdef Due_core_MCU
     //----Config due core
     //create a task that will be executed in the Task1code() function, with priority 1 and executed on core 0
@@ -218,15 +237,15 @@ void Task1code( void * pvParameters ){
     deltaT = newTime - oldTime;
     oldTime = newTime;
     deltaT = deltaT * 0.001 * 0.001;
+    
     //update value ax,ay,az,gx,gy,gz,mx,my,mz
     mpu.Process_IMU();
 
     //update angle yall pitch roll
     update_quaternion();
+
+    printBT_roll_pitch_yaw();
     //Print yaw pitch roll to pc via bluetooth
-    char str[30]={};
-    sprintf(str, "%.2f,%.2f,%.2f,%.5f\n",yaw,pitch,roll,deltaT );
-    SerialBT.write((uint8_t*)str, strlen(str));
   }
 }
 
@@ -234,12 +253,36 @@ void Task1code( void * pvParameters ){
 void Task2code( void * pvParameters ){
   for(;;){
     if(Flag_PID_Interrupted == true){
-      Serial.println(millis());
+      pretime_PID = micros();
+      // Serial.println(millis());
+      // Serial.print(pitch);Serial.print(",");
+      // Serial.print(pid_pitch.set_point);Serial.print(",");
+      // Serial.print(pid_pitch.u);Serial.print(",");
+      // Serial.print(pid_pitch.e);Serial.print(",");
       get_out(&pid_pitch,pid_pitch.set_point,pitch);
-      get_out(&pid_roll,pid_roll.set_point,roll);
-      pwm_caculate (pid_pitch.u, 0,0,0);//pid_roll.u,pid_yaw.u, pid_altitude.u);
-      set_pwm_to_motor(); 
-      Flag_PID_Interrupted = false;
+      get_out(&pid_roll,pid_roll.set_point,roll);  
+      get_out(&pid_yaw,pid_yaw.set_point,yaw);      
+
+      Myaw = SATURATION(pid_yaw.u, 3.0, -3.0);
+      Mpitch = SATURATION(pid_pitch.u, 3.0, -3.0);
+      Mroll  = SATURATION(pid_roll.u, 3.0, -3.0);
+
+      TH1=0.25*pid_yaw.u+0.25*Mpitch/Lq-0.25*Mroll/Lq-0.25*Myaw*kM/kT;
+      TH2=0.25*pid_yaw.u+0.25*Mpitch/Lq+0.25*Mroll/Lq+0.25*Myaw*kM/kT;
+      TH3=0.25*pid_yaw.u-0.25*Mpitch/Lq+0.25*Mroll/Lq-0.25*Myaw*kM/kT;
+      TH4=0.25*pid_yaw.u-0.25*Mpitch/Lq-0.25*Mroll/Lq+0.25*Myaw*kM/kT;
+
+      PWM1=U2PWM(TH1);
+      PWM2=U2PWM(TH2);
+      PWM3=U2PWM(TH3);
+      PWM4=U2PWM(TH4);
+      endtime_PID=micros();
+      
+      Serial.print("start PID: ");Serial.print(pretime_PID);Serial.print("   ");
+      Serial.print("end PID: ");Serial.print(endtime_PID);;Serial.print("   ");
+      Serial.print("time_PID: ");Serial.print(endtime_PID-pretime_PID);Serial.print("   ");
+      Serial.print("DetalT: ");Serial.println(deltaT*1000000);
+      //Flag_PID_Interrupted = false;
     }
   }
 }
@@ -306,22 +349,8 @@ void IRAM_ATTR onTimer2() {
   Flag_PID_Interrupted = true;
 }
 
-void pwm_caculate (int8_t pitch, int8_t roll,int8_t yaw, int8_t altitude){
-  pwm1 = pwm_min+(+ pitch/(4*L) - roll/(4*L) - yaw/(4*KmT) + altitude/4)*0.063;
-	pwm2 = pwm_min+(+ pitch/(4*L) + roll/(4*L) + yaw/(4*KmT) + altitude/4)*0.063;
-	pwm3 = pwm_min+(- pitch/(4*L) + roll/(4*L) - yaw/(4*KmT) + altitude/4)*0.063;
-	pwm4 = pwm_min+(- pitch/(4*L) - roll/(4*L) + yaw/(4*KmT) + altitude/4)*0.063;
-}
-
-void set_pwm_to_motor(void){
-    // Set the duty cycle of each PWM signal (0-255) if define 8 bit solution
-  ledcWrite(PWM_CHANNEL_1, pwm1); 
-  ledcWrite(PWM_CHANNEL_2, pwm2); 
-  ledcWrite(PWM_CHANNEL_3, pwm3); 
-  ledcWrite(PWM_CHANNEL_4, pwm4); 
-}
 void setup_pwm(void){
-    // Configure the timers for PWM generation
+  // Configure the timers for PWM generation
   // configure LED PWM functionalitites
   ledcSetup(PWM_CHANNEL_1, PWM_FREQUENCY, PWM_RESOLUTION);
   ledcSetup(PWM_CHANNEL_2, PWM_FREQUENCY, PWM_RESOLUTION);
@@ -343,6 +372,13 @@ void print_roll_pitch_yaw() {
     Serial.print(pitch);
     Serial.print(",");
     Serial.println(roll);
+}
+
+void printBT_roll_pitch_yaw() {
+    //Print yaw pitch roll to pc via bluetooth
+    char str[30]={};
+    sprintf(str, "%.2f,%.2f,%.2f,%.5f\n",yaw,pitch,roll,deltaT );
+    SerialBT.write((uint8_t*)str, strlen(str));
 }
 
 void update_quaternion (void)
@@ -371,16 +407,49 @@ void update_quaternion (void)
 }
 
 void cali_motor(void){
-  ledcWrite(PWM_CHANNEL_1, pwm_max);
-  ledcWrite(PWM_CHANNEL_2, pwm_max);
-  ledcWrite(PWM_CHANNEL_3, pwm_max);
-  ledcWrite(PWM_CHANNEL_4, pwm_max);
+  ledcWrite(PWM_CHANNEL_1, THROTTLE_MAXIMUM);
+  ledcWrite(PWM_CHANNEL_2, THROTTLE_MAXIMUM);
+  ledcWrite(PWM_CHANNEL_3, THROTTLE_MAXIMUM);
+  ledcWrite(PWM_CHANNEL_4, THROTTLE_MAXIMUM);
 
   delay(4000);
 
-  ledcWrite(PWM_CHANNEL_1, pwm_min);
-  ledcWrite(PWM_CHANNEL_2, pwm_min);
-  ledcWrite(PWM_CHANNEL_3, pwm_min);
-  ledcWrite(PWM_CHANNEL_4, pwm_min);
+  ledcWrite(PWM_CHANNEL_1, THROLLTE0);
+  ledcWrite(PWM_CHANNEL_2, THROLLTE0);
+  ledcWrite(PWM_CHANNEL_3, THROLLTE0);
+  ledcWrite(PWM_CHANNEL_4, THROLLTE0);
   delay(10000);
+}
+
+volatile int U2PWM(float T)
+{
+  float PWM;
+  PWM=(-b+sqrt(b*b-4*a*(c-abs(T))))*0.5/a/2;
+  if (T<0)
+  {
+    PWM=-PWM;
+  }
+  PWM=PWM/15+THROLLTE0;
+  
+  if (PWM<THROTTLE_MINIMUM)
+  {
+    PWM=THROTTLE_MINIMUM;
+  }
+
+  if (PWM>THROTTLE_MAXIMUM)
+  {
+    PWM=THROTTLE_MAXIMUM;
+  }
+  return PWM;
+}
+float SATURATION(float x, float xmax, float xmin)
+{  
+  if (x>xmax){
+    x=xmax; 
+  }
+
+  if (x<xmin){
+    x= xmin; 
+  }
+  return x;
 }
