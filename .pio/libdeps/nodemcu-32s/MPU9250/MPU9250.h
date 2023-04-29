@@ -9,6 +9,7 @@
 #include "Wire.h"
 #include "BluetoothSerial.h"
 #include "string.h"
+
 extern BluetoothSerial SerialBT;
 // #define DLPF  6  //5Hz for gyro
 #define DLPF  5  //10Hz for gyro
@@ -17,27 +18,57 @@ extern BluetoothSerial SerialBT;
 // #define DLPF  2  //98Hz for gyro
 // #define DLPF  1  //188Hz for gyro
 // #define DLPF  0  //256Hz for gyro
-//#define AUTO_CALIB_IMU
+#define AUTO_CALIB_IMU
+//#define AUTO_CALIB_MAG
 //#define SERIALBT
 //value calib
 /*
-Accel_x_bias : 1156
-Accel_y_bias : -57
-Accel_z_bias : -48
-Gyro_x_bias : -217
-Gyro_y_bias : 548
-Gyro_z_bias : 134
+Accel_x_bias : -870
+Accel_y_bias : -225
+Accel_z_bias : 12
+Gyro_x_bias : -216
+Gyro_y_bias : 532
+Gyro_z_bias : 126
 
-Mag_x_bias:-17.92
-Mag_y_bias:102.40
-Mag_z_bias:-17.92
+Accel_x_bias : 632
+Accel_y_bias : -134
+Accel_z_bias : 25
+Gyro_x_bias : -216
+Gyro_y_bias : 526
+Gyro_z_bias : 131
+
+Accel_x_bias : 26
+Accel_y_bias : -490
+Accel_z_bias : 19
+Gyro_x_bias : -218
+Gyro_y_bias : 536
+Gyro_z_bias : 121
+
+Mag_x_bias:25.60
+Mag_y_bias:92.16
+Mag_z_bias:-227.84
 Mag_x_scale:1.00
 Mag_y_scale:1.00
 Mag_z_scale:1.00
+
+Mag_x_bias:112.64
+Mag_y_bias:104.96
+Mag_z_bias:-166.40
+Mag_x_scale:1.00
+Mag_y_scale:1.00
+Mag_z_scale:1.00
+
+Mag_x_bias:-2.56
+Mag_y_bias:120.32
+Mag_z_bias:-232.96
+Mag_x_scale:1.00
+Mag_y_scale:1.00
+Mag_z_scale:1.00
+
 */
 
 
-int16_t Accel_x,Accel_y,Accel_z,Gyro_x,Gyro_y,Gyro_z;
+volatile int16_t Accel_x,Accel_y,Accel_z,Gyro_x,Gyro_y,Gyro_z;
 #define accel_sensitivity 16384.0//8192.0//16384.0      // =  LSB/g
 #define mag_sensitivity    2.56 // Divide raw data by mag_sensitivity to change uT -> mG      raw_Data/(10*4912/32760)
 #define gyro_sensitivity    131.0// 65.5//131.0   // =  LSB/degrees/sec
@@ -50,7 +81,6 @@ float Mag_x_bias, Mag_y_bias, Mag_z_bias;
 
 extern float deltaT;
 
-float yaw1, yaw2, yaw3;
 int16_t Mag_x_raw, Mag_y_raw, Mag_z_raw;
 volatile float roll,yaw,pitch;
 
@@ -785,6 +815,7 @@ void Calibration_IMU()
 
 void Calib_magnetometer()
 {
+#ifdef AUTO_CALIB_MAG
 	int16_t mag_max[3] = {-32767, -32767, -32767}, mag_min[3] = {32767, 32767, 32767};
 
 	//int16_t mag_max[3] = {344.0,392.0,51.0},mag_min[3] = {-115.0,24.0,-323.0};
@@ -836,37 +867,47 @@ void Calib_magnetometer()
     Mag_x_bias = (float)bias[0] * mag_sensitivity ;
 	Mag_y_bias = (float)bias[1] * mag_sensitivity ;
 	Mag_z_bias = (float)bias[2] * mag_sensitivity ;
-#ifdef SERIALBT
-    char str[60]={};
-    sprintf(str, "Mx_bias: %.2f   My_bias: %.2f   Mz_bias: %.2f\n",Mag_x_bias,Mag_y_bias,Mag_z_bias);
-    SerialBT.write((uint8_t*)str, strlen(str));
-#else
-    Serial.print("Mag_x_bias:");Serial.println(Mag_x_bias);
-    Serial.print("Mag_y_bias:");Serial.println(Mag_y_bias);
-    Serial.print("Mag_z_bias:");Serial.println(Mag_z_bias);
-#endif 
-    // Get soft iron correction estimate
-    //*** multiplication by mag_bias_factory added in accordance with the following comment
-    //*** https://github.com/kriswiner/MPU9250/issues/456#issue-836657973
-    scale[0] = (float)(mag_max[0] - mag_min[0]) * mag_sensitivity / 2;  // get average x axis max chord length in counts
-    scale[1] = (float)(mag_max[1] - mag_min[1]) * mag_sensitivity / 2;  // get average y axis max chord length in counts
-    scale[2] = (float)(mag_max[2] - mag_min[2]) * mag_sensitivity / 2;  // get average z axis max chord length in counts
+    #ifdef SERIALBT
+        char str[60]={};
+        sprintf(str, "Mx_bias: %.2f   My_bias: %.2f   Mz_bias: %.2f\n",Mag_x_bias,Mag_y_bias,Mag_z_bias);
+        SerialBT.write((uint8_t*)str, strlen(str));
+    #else
+        Serial.print("Mag_x_bias:");Serial.println(Mag_x_bias);
+        Serial.print("Mag_y_bias:");Serial.println(Mag_y_bias);
+        Serial.print("Mag_z_bias:");Serial.println(Mag_z_bias);
+    #endif 
+        // Get soft iron correction estimate
+        //*** multiplication by mag_bias_factory added in accordance with the following comment
+        //*** https://github.com/kriswiner/MPU9250/issues/456#issue-836657973
+        scale[0] = (float)(mag_max[0] - mag_min[0]) * mag_sensitivity / 2;  // get average x axis max chord length in counts
+        scale[1] = (float)(mag_max[1] - mag_min[1]) * mag_sensitivity / 2;  // get average y axis max chord length in counts
+        scale[2] = (float)(mag_max[2] - mag_min[2]) * mag_sensitivity / 2;  // get average z axis max chord length in counts
 
-    float avg_rad = scale[0] + scale[1] + scale[2];
-    avg_rad /= 3.0;
+        float avg_rad = scale[0] + scale[1] + scale[2];
+        avg_rad /= 3.0;
 
-    Mag_x_scale = avg_rad / ((float)scale[0]);
-    Mag_y_scale = avg_rad / ((float)scale[1]);
-    Mag_z_scale = avg_rad / ((float)scale[2]);
-#ifdef SERIALBT
-    strcpy(str, "");
-    sprintf(str, "Mx_scale: %.2f   My_scale: %.2f   Mz_scale: %.2f\n" ,Mag_x_scale,Mag_y_scale,Mag_z_scale);
-    SerialBT.write((uint8_t*)str, strlen(str));
+        Mag_x_scale = avg_rad / ((float)scale[0]);
+        Mag_y_scale = avg_rad / ((float)scale[1]);
+        Mag_z_scale = avg_rad / ((float)scale[2]);
+    #ifdef SERIALBT
+        strcpy(str, "");
+        sprintf(str, "Mx_scale: %.2f   My_scale: %.2f   Mz_scale: %.2f\n" ,Mag_x_scale,Mag_y_scale,Mag_z_scale);
+        SerialBT.write((uint8_t*)str, strlen(str));
+    #else
+        Serial.print("Mag_x_scale:");Serial.println(Mag_x_scale);
+        Serial.print("Mag_y_scale:");Serial.println(Mag_y_scale);
+        Serial.print("Mag_z_scale:");Serial.println(Mag_z_scale);
+    #endif
 #else
-    Serial.print("Mag_x_scale:");Serial.println(Mag_x_scale);
-    Serial.print("Mag_y_scale:");Serial.println(Mag_y_scale);
-    Serial.print("Mag_z_scale:");Serial.println(Mag_z_scale);
+        Mag_x_bias =  65;
+        Mag_y_bias =  205;
+        Mag_z_bias =  -227;
+
+        Mag_x_scale = 1;
+        Mag_y_scale = 1;
+        Mag_z_scale = 1;
 #endif
+
 }
 	
 void Process_IMU()
